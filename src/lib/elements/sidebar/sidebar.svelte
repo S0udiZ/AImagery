@@ -48,7 +48,7 @@
   <Sidebar.Footer class="px-0">
     <Sidebar.Menu class="gap-2">
       <Sidebar.MenuItem>
-        <Sidebar.MenuButton class="sidebar-menu-button">
+        <Sidebar.MenuButton class="sidebar-menu-button gap-3">
           <LightSwitch />
           <span class="text-sm">Toggle Dark Mode</span>
         </Sidebar.MenuButton>
@@ -63,7 +63,7 @@
       </Sidebar.MenuItem>
       <Sidebar.MenuItem>
         <Sidebar.MenuButton class="sidebar-menu-button">
-          <Dialog.Trigger class="flex items-center gap-2 hover:cursor-pointer">
+          <Dialog.Trigger class="flex items-center gap-3 hover:cursor-pointer">
             <Icon icon="mdi:settings" class="size-8" />
             <span class="text-sm">Settings</span>
           </Dialog.Trigger>

@@ -2,7 +2,7 @@
   // biome-ignore lint/style/useImportType: <explanation>
   import { Switch } from "bits-ui";
   import Icon from "@iconify/svelte";
-  import { scale } from "svelte/transition";
+  import { slide } from "svelte/transition";
   import type { ComponentProps } from "svelte";
 
   let {
@@ -35,12 +35,12 @@
   <Switch.Thumb>
     {#snippet child({ checked })}
       {#if checked}
-        <span in:scale={{ duration: 200 }} out:scale={{ duration: 200 }}>
-          <Icon icon="mdi:moon-and-stars" class="size-8" />
+        <span class="cursor-pointer block" in:slide={{ duration: 100 }} out:slide={{ duration: 100 }}>
+          <Icon inline={false} icon="mdi:moon-and-stars" class="size-8" />
         </span>
       {:else}
-        <span in:scale={{ duration: 200 }} out:scale={{ duration: 200 }}>
-          <Icon icon="mdi:white-balance-sunny" class="size-8" />
+        <span class="cursor-pointer block" in:slide={{ duration: 100 }} out:slide={{ duration: 100 }}>
+          <Icon inline={false} icon="mdi:white-balance-sunny" class="size-8" />
         </span>
       {/if}
     {/snippet}

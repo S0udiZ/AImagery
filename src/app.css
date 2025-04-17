@@ -232,6 +232,14 @@
 
 .sidebar-menu-button {
   &:is(:where(.group)[data-collapsible="icon"] *) {
-    @apply size-10;
+    @apply !w-12 h-10;
+  }
+  &:hover {
+    & svg {
+      @apply scale-110;
+    }
+  }
+  & a {
+    @apply gap-3;
   }
 }
