@@ -1,0 +1,50 @@
+{
+    "cover_image_url": "uri",
+    "latest_version": {
+        "id": "string",
+        "openapi_schema": {
+            "components": {
+                "schemas": {
+                    "Input": {
+                        "required": [
+                            "string"
+                        ],
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "title": "string",
+                                "description": "string",
+                                "allOf?": {
+                                    "$ref": "#/components/schemas/Name"
+                                },
+                                "default?": "string",
+                                "minimun?": "number",
+                                "maximum?": "number"
+                            }
+                        }
+                    },
+                    "Output": {
+                        "type": "strong | array",
+                        "title": "string",
+                        "format?": "uri",
+                        "items?": {
+                            "type": "string",
+                            "format": "uri"
+                        }
+                    },
+                    "Name": {
+                        "type": "string",
+                        "title": "string",
+                        "description": "string",
+                        "emun": [
+                            "string"
+                        ]
+                    }
+                }
+            }
+        }
+    },
+    "name": "string",
+    "owner": "string",
+    "url": "uri"
+}

@@ -47,7 +47,7 @@
 <Dialog.Root>
   <Sidebar.Provider bind:open>
     <AppSidebar />
-    <main class="w-full flex-1 flex relative">
+    <main class="w-full flex-1 flex relative p-8">
       <Button
         type="button"
         onclick={(e) => {
