@@ -43,6 +43,11 @@
         filteredModels = await replicate.models.search(searchTerm);
       }, 300);
     };
+
+  async function selectForCreation(model: Model) {
+    const modelDetails = await getModelDetails(model.owner, model.name);
+    console.log(modelDetails.latest_version?.openapi_schema);
+  }
 </script>
 
 <Dialog.Root>
@@ -79,7 +84,10 @@
       <Separator class="my-4" />
       <ScrollArea class="h-96 w-md">
         {#each filteredModels?.results ?? [] as model}
-          <div
+          <Button
+            onclick={() => {
+              selectForCreation(model);
+            }}
             class="flex flex-col relative gap-2 p-4 border-b border-gray-200 hover:cursor-pointer hover:bg-gray-50 w-full text-wrap"
           >
             <div class="flex justify-between gap-2">
@@ -97,7 +105,7 @@
             <p class="text-sm text-gray-400 truncate">
               Version: {model.latest_version?.id}
             </p>
-          </div>
+          </Button>
         {/each}
       </ScrollArea>
     </Dialog.Description>
