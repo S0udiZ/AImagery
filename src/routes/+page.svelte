@@ -19,8 +19,8 @@
   {#if $loadedModel}
     <div class="w-full h-full flex flex-col items-center justify-center">
       <h1 class="text-2xl font-bold">Model Loaded</h1>
-      <p>Model Name: {$loadedModelName}</p>
-      <p>Model Version: {$loadedModelVersion}</p>
+      <p>Model Name: {$loadedModel.model}</p>
+      <p>Model Version: {$loadedModel.version}</p>
     </div>
   {:else}
     <div class="w-full h-full flex flex-col items-center justify-center">

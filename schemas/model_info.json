@@ -24,7 +24,7 @@
                         }
                     },
                     "Output": {
-                        "type": "strong | array",
+                        "type": "string | array",
                         "title": "string",
                         "format?": "uri",
                         "items?": {
