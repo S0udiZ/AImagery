@@ -82,7 +82,7 @@
   async function selectForCreation(_model: Model) {
     const _modelDetails = await getModelDetails(_model.owner, _model.name);
     const modelDetails: SchemaInputs = {
-      ..._modelDetails.latest_version?.openapi_schema.components.schemas.Input
+      ..._modelDetails.latest_version?.openapi_schema.components.schemas.Input,
     }
     refs = _modelDetails.latest_version?.openapi_schema.components.schemas;
     schemaInputs.set(
@@ -199,20 +199,22 @@
           </p>
           <Separator class="my-4" />
           {#each Object.entries($schemaInputs.properties) as [key, input]}
-            <Label class="flex gap-2 p-4 border-b border-gray-200 hover:cursor-pointer hover:bg-gray-50 w-full text-wrap items-center">
+            <Label 
+            class={"flex gap-2 p-4 border-b border-gray-200 hover:cursor-pointer hover:bg-gray-50 w-full text-wrap items-center"}
+            >
               <!-- Sets the value to true and disable the checkbox if $schemaInputs.requred contains the input.title -->
               <Checkbox
                 id={key}
                 name={key}
                 class="w-4 h-4 mr-2"
                 checked={$schemaInputs.required.includes(key) ? true : false}
-                disabled={$schemaInputs.required.includes(key) ? true : false}
               />
               <div class="flex flex-col">
                 <h2 class="text-lg font-semibold">
                   {input.title
                     ? input.title
-                    : key} | {input.type ? input.type : "selection"}
+                    : key} | {input.type ? input.type : "selection"} | 
+                    {$schemaInputs.required.includes(key) ? "Required" : "Optional"}
                 </h2>
                 <p class="text-sm text-gray-500">{input.description}</p>
               </div>
