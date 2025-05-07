@@ -4,6 +4,7 @@
   import Icon from "@iconify/svelte";
   import { slide } from "svelte/transition";
   import type { ComponentProps } from "svelte";
+  import { mode, setMode } from "mode-watcher";
 
   let {
     checked = $bindable(false),
@@ -19,6 +20,7 @@
   const onCheckedChange = (Checked: boolean) => {
     const mode = Checked ? "dark" : "light";
     document.body.setAttribute("data-mode", mode);
+    setMode(mode);
     localStorage.setItem("mode", mode);
     checked = Checked;
   };

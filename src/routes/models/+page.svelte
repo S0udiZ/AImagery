@@ -6,6 +6,11 @@
     clearLoadedModel,
     setLoadedModel,
   } from "$lib/context/loadedModel";
+  import {
+    createdModels,
+    addCreatedModel,
+    removeCreatedModel,
+  } from "$lib/context/createdModels";
   import { apiKey } from "$lib/context/settings";
   import { fetch } from "@tauri-apps/plugin-http";
   import Replicate from "replicate";
@@ -18,7 +23,7 @@
   import { writable, type Writable } from "svelte/store";
   import { Checkbox } from "$lib/components/ui/checkbox/index.js";
   import { Label } from "$lib/components/ui/label/index.js";
-    import { redirect } from "@sveltejs/kit";
+  import { goto } from "$app/navigation";
 
   const replicate = new Replicate({
     auth: $apiKey as string | undefined,
@@ -30,8 +35,10 @@
     return response;
   }
 
+  // biome-ignore lint/style/useConst: <explanation>
   let { data }: { data: PageData } = $props();
 
+  // biome-ignore lint/style/useConst: <explanation>
   let searchTerm = $state("");
 
   let filteredModels: Page<Model> | null = $state(null);
@@ -52,7 +59,9 @@
 
   type SchemaInputs = {
     required: string[];
-    properties: Name[];
+    properties: {
+      [key: string]: Name;
+    }[];
     title: string;
     type: string;
   };
@@ -65,7 +74,7 @@
   let model = $state("");
   let version = $state("");
 
-  let refs = $state({})
+  let refs = $state({});
 
   $inspect($schemaInputs);
 
@@ -83,11 +92,9 @@
     const _modelDetails = await getModelDetails(_model.owner, _model.name);
     const modelDetails: SchemaInputs = {
       ..._modelDetails.latest_version?.openapi_schema.components.schemas.Input,
-    }
+    };
     refs = _modelDetails.latest_version?.openapi_schema.components.schemas;
-    schemaInputs.set(
-      modelDetails
-    );
+    schemaInputs.set(modelDetails);
     if ($schemaInputs) {
       owner = _model.owner;
       model = _model.name;
@@ -109,19 +116,40 @@
       version,
       inputs: [],
       default: {},
-      $ref: {}
-    }
+      $ref: {},
+    };
     const _refs = $state.snapshot(refs);
     for (const [key, value] of Object.entries(inputs)) {
       if (value) {
-        modelParameters.inputs.push({ [key]: $schemaInputs?.properties[key].type ? $schemaInputs?.properties[key].type : "selection" });
-        modelParameters.default[key] = $schemaInputs?.properties[key].default ? $schemaInputs?.properties[key].default : "";
-        modelParameters.$ref[key] = _refs[key] ? (_refs[key].enum) : "";
+        modelParameters.inputs.push({
+          [key]: $schemaInputs?.properties[key].type
+            ? $schemaInputs?.properties[key].type
+            : "selection",
+        });
+        modelParameters.default[key] = $schemaInputs?.properties[key].default
+          ? $schemaInputs?.properties[key].default
+          : "";
+        modelParameters.$ref[key] = _refs[key] ? _refs[key].enum : "";
       }
     }
-    setLoadedModel({
-      ...modelParameters
-    });
+    setLoadedModel(modelParameters);
+    // Also add to persisted list of created models
+    addCreatedModel(modelParameters);
+    goto("/")
+  }
+
+  function deleteModel(index: number) {
+    if ($loadedModel === $createdModels[index]) {
+      clearLoadedModel();
+    }
+    removeCreatedModel(index);
+  }
+
+  function selectModelFromList(index: number) {
+    if ($createdModels[index]) {
+      setLoadedModel($createdModels[index]);
+      goto("/");
+    }
   }
 </script>
 
@@ -199,25 +227,45 @@
           </p>
           <Separator class="my-4" />
           {#each Object.entries($schemaInputs.properties) as [key, input]}
-            <Label 
-            class={"flex gap-2 p-4 border-b border-gray-200 hover:cursor-pointer hover:bg-gray-50 w-full text-wrap items-center"}
+            <Label
+              class={"flex gap-2 p-4 border-b border-gray-200 hover:cursor-pointer hover:bg-gray-50 w-full text-wrap items-center"}
             >
-              <!-- Sets the value to true and disable the checkbox if $schemaInputs.requred contains the input.title -->
-              <Checkbox
-                id={key}
-                name={key}
-                class="w-4 h-4 mr-2"
-                checked={$schemaInputs.required.includes(key) ? true : false}
-              />
-              <div class="flex flex-col">
-                <h2 class="text-lg font-semibold">
-                  {input.title
-                    ? input.title
-                    : key} | {input.type ? input.type : "selection"} | 
-                    {$schemaInputs.required.includes(key) ? "Required" : "Optional"}
-                </h2>
-                <p class="text-sm text-gray-500">{input.description}</p>
-              </div>
+              {#if $schemaInputs.required != undefined}
+                <!-- Sets the value to true and disable the checkbox if $schemaInputs.requred contains the input.title -->
+                <Checkbox
+                  id={key}
+                  name={key}
+                  class="w-4 h-4 mr-2"
+                  checked={$schemaInputs.required?.includes(key) ? true : false}
+                  disabled={$schemaInputs.required?.includes(key)
+                    ? true
+                    : false}
+                />
+                {#if $schemaInputs?.required.includes(key)}
+                  <Checkbox id={key} name={key} class="hidden" checked={true} />
+                {/if}
+                <div class="flex flex-col">
+                  <h2 class="text-lg font-semibold">
+                    {input.title ? input.title : key} | {input.type
+                      ? input.type
+                      : "selection"} |
+                    {$schemaInputs.required.includes(key)
+                      ? "Required"
+                      : "Optional"}
+                  </h2>
+                  <p class="text-sm text-gray-500">{input.description}</p>
+                </div>
+              {:else}
+                <Checkbox id={key} name={key} class="w-4 h-4 mr-2" />
+                <div class="flex flex-col">
+                  <h2 class="text-lg font-semibold">
+                    {input.title ? input.title : key} | {input.type
+                      ? input.type
+                      : "selection"} | Optional
+                  </h2>
+                  <p class="text-sm text-gray-500">{input.description}</p>
+                </div>
+              {/if}
             </Label>
           {/each}
         {:else}
@@ -230,3 +278,24 @@
     </form>
   </Dialog.Content>
 </Dialog.Root>
+
+<div class="py-4">
+  {#each $createdModels as model, index}
+    <div class="flex gap-2 items-center p-4 w-full text-wrap">
+      <Button
+        class="flex flex-col gap-2 h-fit cursor-pointer"
+        onclick={() => selectModelFromList(index)}
+      >
+        <h2 class="text-xl">{model.owner}/{model.model}</h2>
+        <p>{model.version}</p>
+      </Button>
+      <Button
+        variant="destructive"
+        class="size-10 hover:cursor-pointer hover:scale-105"
+        onclick={() => deleteModel(index)}
+      >
+        <Icon icon="mdi:delete" class="!size-10" />
+      </Button>
+    </div>
+  {/each}
+</div>

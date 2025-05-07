@@ -1,6 +1,6 @@
 import { writable, type Writable } from "svelte/store";
 
-type ModelParameters = {
+export type ModelParameters = {
     owner: string;
     model: string;
     version: string;

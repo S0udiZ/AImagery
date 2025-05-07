@@ -12,6 +12,7 @@
   import Label from "$lib/components/ui/label/label.svelte";
   import { Input } from "$lib/components/ui/input";
   import { Checkbox } from "$lib/components/ui/checkbox";
+  import { Toaster } from "$lib/components/ui/sonner/index.js";
 
   // Context
   import { apiKey, setApiKey } from "$lib/context/settings";
@@ -43,6 +44,8 @@
     setApiKey(settingsApiKey);
   }
 </script>
+
+<Toaster />
 
 <Dialog.Root>
   <Sidebar.Provider bind:open>

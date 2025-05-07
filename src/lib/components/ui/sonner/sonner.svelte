@@ -6,7 +6,8 @@
 </script>
 
 <Sonner
-	theme={$mode}
+	theme={mode.current}
+	{...restProps}
 	class="toaster group"
 	toastOptions={{
 		classes: {
