@@ -4,8 +4,17 @@ export type ModelParameters = {
     owner: string;
     model: string;
     version: string;
-    inputs: Array<Record<string, string>>;
-    default: Record<string, string>;
+    inputs: {
+        [key: string]: {
+            type: string;
+            inputType: string;
+            title: string;
+            description: string;
+            default?: string | number | boolean | null;
+            minimum?: number;
+            maximum?: number;
+        }[]
+    };
     $ref: Record<string, string | string[]>;
   };
 

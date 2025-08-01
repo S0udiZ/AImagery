@@ -14,7 +14,8 @@
 			{
 				"title": "aimagery",
 				"width": 1422,
-				"height": 800
+				"height": 800,
+				"dragDropEnabled": false
 			}
 		],
 		"security": {

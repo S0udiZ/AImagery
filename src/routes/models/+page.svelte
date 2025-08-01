@@ -5,6 +5,7 @@
     loadedModel,
     clearLoadedModel,
     setLoadedModel,
+    type ModelParameters,
   } from "$lib/context/loadedModel";
   import {
     createdModels,
@@ -24,6 +25,9 @@
   import { Checkbox } from "$lib/components/ui/checkbox/index.js";
   import { Label } from "$lib/components/ui/label/index.js";
   import { goto } from "$app/navigation";
+  import { draggable, droppable, type DragDropState } from "@thisux/sveltednd";
+  import { Select } from "bits-ui";
+  import { toast } from "svelte-sonner";
 
   const replicate = new Replicate({
     auth: $apiKey as string | undefined,
@@ -61,12 +65,12 @@
     required: string[];
     properties: {
       [key: string]: Name;
-    }[];
+    };
     title: string;
     type: string;
   };
 
-  const schemaInputs: Writable<SchemaInputs | null> = writable(null);
+  let schemaInputs: SchemaInputs | null = $state(null);
 
   let modelBLockSelectionDialog = $state(false);
 
@@ -76,7 +80,21 @@
 
   let refs = $state({});
 
-  $inspect($schemaInputs);
+  $inspect(schemaInputs);
+
+  const typeList = {
+    string: ["input", "textarea"],
+    number: ["input", "slider"],
+    integer: ["input", "slider"],
+    boolean: ["checkbox"],
+    allof: ["selection"],
+  };
+
+  let on: { [key: string]: Name } = $state({});
+  let onOrder: string[] = $state([]);
+  let offOrder: string[] = $state([]);
+
+  $inspect(on);
 
   async function search() {
     if (debounceTimeout) {
@@ -94,48 +112,59 @@
       ..._modelDetails.latest_version?.openapi_schema.components.schemas.Input,
     };
     refs = _modelDetails.latest_version?.openapi_schema.components.schemas;
-    schemaInputs.set(modelDetails);
-    if ($schemaInputs) {
+    schemaInputs = modelDetails;
+    if (schemaInputs) {
       owner = _model.owner;
       model = _model.name;
       version = _model.latest_version?.id ? _model.latest_version?.id : "";
       modelBLockSelectionDialog = true;
+      // Initialize order arrays
+      on = {};
+      onOrder = [];
+      offOrder = Object.keys(schemaInputs.properties);
     } else {
-      schemaInputs.set(null);
+      schemaInputs = null;
+      owner = "";
+      model = "";
+      version = "";
+      modelBLockSelectionDialog = false;
+      toast.error(
+        "No inputs available for this model. Please select another model."
+      );
     }
   }
 
   async function submitForm(event: Event) {
     event.preventDefault();
-    const formData = new FormData(event.target as HTMLFormElement);
-    const inputs = Object.fromEntries(formData.entries());
+    // const formData = new FormData(event.target as HTMLFormElement);
+    // const inputs = Object.fromEntries(formData.entries());
+    const inputs = $state.snapshot(on);
     console.log("Inputs:", inputs);
-    const modelParameters = {
+    const modelParameters: ModelParameters = {
       owner,
       model,
       version,
-      inputs: [],
-      default: {},
+      inputs: {},
       $ref: {},
     };
     const _refs = $state.snapshot(refs);
     for (const [key, value] of Object.entries(inputs)) {
       if (value) {
-        modelParameters.inputs.push({
-          [key]: $schemaInputs?.properties[key].type
-            ? $schemaInputs?.properties[key].type
-            : "selection",
-        });
-        modelParameters.default[key] = $schemaInputs?.properties[key].default
-          ? $schemaInputs?.properties[key].default
-          : "";
-        modelParameters.$ref[key] = _refs[key] ? _refs[key].enum : "";
+        modelParameters.inputs[key].type = value.type;
+        modelParameters.inputs[key].title = value.title;
+        modelParameters.inputs[key].description = value.description;
+        if (value.allOf) {
+          modelParameters.$ref[key] = _refs[key];
+        }
+        modelParameters.inputs[key].default = value.default ?? "";
+        modelParameters.inputs[key].minimum = value.minimum ?? undefined;
+        modelParameters.inputs[key].maximum = value.maximum ?? undefined;
       }
     }
     setLoadedModel(modelParameters);
     // Also add to persisted list of created models
     addCreatedModel(modelParameters);
-    goto("/")
+    goto("/");
   }
 
   function deleteModel(index: number) {
@@ -149,6 +178,56 @@
     if ($createdModels[index]) {
       setLoadedModel($createdModels[index]);
       goto("/");
+    }
+  }
+
+  function handleDrop(state: DragDropState<SchemaInputs["properties"]>) {
+    const { draggedItem, targetContainer, sourceContainer } = state;
+    console.log(targetContainer)
+    const [key, value] = Object.entries(draggedItem)[0];
+    switch (targetContainer !== sourceContainer) {
+      case true: {
+        // take item from sourceContainer and put it into targetContainer
+        if (sourceContainer === "on") {
+          delete on[key];
+          const idx = onOrder.indexOf(key);
+          if (idx !== -1) onOrder.splice(idx, 1);
+        } else if (sourceContainer === "off") {
+          if (!schemaInputs) return;
+          delete schemaInputs.properties[key];
+          const idx = offOrder.indexOf(key);
+          if (idx !== -1) offOrder.splice(idx, 1);
+        }
+        if (targetContainer === "on") {
+          on[key] = value as Name;
+          onOrder.splice(onOrder.length, 0, key);
+        } else if (targetContainer === "off") {
+          if (!schemaInputs) return;
+          schemaInputs.properties[key] = value as Name;
+          offOrder.splice(offOrder.length, 0, key);
+        }
+        break;
+      }
+      case false:
+        // Rearranging item in the same container
+        if (sourceContainer === "on") {
+          const idx = onOrder.indexOf(key);
+          if (idx !== -1) {
+            onOrder.splice(idx, 1);
+            const targetIdx = Number.parseInt(targetContainer as string);
+            onOrder.splice(Number.isNaN(targetIdx) ? 0 : targetIdx, 0, key);
+          }
+        } else if (sourceContainer === "off") {
+          const idx = offOrder.indexOf(key);
+          if (idx !== -1) {
+            offOrder.splice(idx, 1);
+            const targetIdx = Number.parseInt(targetContainer as string);
+            offOrder.splice(Number.isNaN(targetIdx) ? 0 : targetIdx, 0, key);
+          }
+        }
+        break;
+      default:
+        break;
     }
   }
 </script>
@@ -219,63 +298,121 @@
 <Dialog.Root bind:open={modelBLockSelectionDialog}>
   <Dialog.Content class="max-w-5xl max-h-10/12 overflow-auto">
     <Dialog.Title class="text-lg font-bold">Model inputs</Dialog.Title>
-    <form action="" onsubmit={submitForm}>
-      <Dialog.Description class="mt-4 text-sm text-gray-600">
-        {#if $schemaInputs}
-          <p class="text-sm text-gray-500">
-            Please select the inputs for the model:
-          </p>
-          <Separator class="my-4" />
-          {#each Object.entries($schemaInputs.properties) as [key, input]}
-            <Label
-              class={"flex gap-2 p-4 border-b border-gray-200 hover:cursor-pointer hover:bg-gray-50 w-full text-wrap items-center"}
-            >
-              {#if $schemaInputs.required != undefined}
-                <!-- Sets the value to true and disable the checkbox if $schemaInputs.requred contains the input.title -->
-                <Checkbox
-                  id={key}
-                  name={key}
-                  class="w-4 h-4 mr-2"
-                  checked={$schemaInputs.required?.includes(key) ? true : false}
-                  disabled={$schemaInputs.required?.includes(key)
-                    ? true
-                    : false}
-                />
-                {#if $schemaInputs?.required.includes(key)}
-                  <Checkbox id={key} name={key} class="hidden" checked={true} />
-                {/if}
-                <div class="flex flex-col">
-                  <h2 class="text-lg font-semibold">
-                    {input.title ? input.title : key} | {input.type
-                      ? input.type
-                      : "selection"} |
-                    {$schemaInputs.required.includes(key)
-                      ? "Required"
-                      : "Optional"}
-                  </h2>
-                  <p class="text-sm text-gray-500">{input.description}</p>
-                </div>
-              {:else}
-                <Checkbox id={key} name={key} class="w-4 h-4 mr-2" />
-                <div class="flex flex-col">
-                  <h2 class="text-lg font-semibold">
-                    {input.title ? input.title : key} | {input.type
-                      ? input.type
-                      : "selection"} | Optional
-                  </h2>
-                  <p class="text-sm text-gray-500">{input.description}</p>
-                </div>
-              {/if}
-            </Label>
-          {/each}
-        {:else}
-          <p class="text-sm text-gray-500">No inputs available.</p>
-        {/if}
-      </Dialog.Description>
+    <Dialog.Description class="mt-4 text-sm text-gray-600">
+      <div class="grid grid-cols-2">
+        <div
+          class="space-y-2 ring-1 p-2"
+          use:droppable={{
+            container: "on",
+            callbacks: { onDrop: handleDrop },
+          }}
+        >
+          {#if schemaInputs}
+            {#each onOrder as key}
+              {@const input = on[key]}
+              {@const property = on[key] as Name}
+              {@const type = typeList[(property.type as keyof typeof typeList) ?? "allof"]}
+              <div
+                class="text-xl flex justify-between items-center cursor-move rounded-lg bg-white p-3 shadow-sm ring-1 ring-gray-200 transition-all duration-200 hover:shadow-md hover:ring-2 hover:ring-blue-200 svelte-dnd-touch-feedback"
+                use:draggable={{
+                  container: "on",
+                  dragData: { [key]: input as Name },
+                  interactive: [".interactible"],
+                }}
+                use:droppable={{
+                  container: "on",
+                  callbacks: { onDrop: handleDrop },
+                }}
+              >
+                <p class="items-center text-center flex"><span class="text-3xl">⠿</span>{key}</p>
+                <Select.Root
+                  type="single"
+                  value={type[0]}
+                  class="interactible"
+                >
+                  <Select.Trigger
+                    class="border border-gray-300 rounded px-2 py-1 after:content-[' ▼'] interactible"
+                  >
+                    {type[0]}
+                  </Select.Trigger>
+                  <Select.Content class="interactible">
+                    <Select.Group class="interactible z-10">
+                      {#each type as option}
+                        <Select.Item
+                          class="interactible"
+                          value={option}
+                          label={option}>{option}</Select.Item
+                        >
+                      {/each}
+                    </Select.Group>
+                  </Select.Content>
+                </Select.Root>
+              </div>
+            {/each}
+          {/if}
+        </div>
+        <div
+          class="space-y-2 ring-1 p-2"
+          use:droppable={{
+            container: "off",
+            callbacks: { onDrop: handleDrop },
+          }}
+        >
+          {#if schemaInputs}
+            {#each offOrder as key}
+              {@const input = schemaInputs.properties[key]}
+              {@const property = schemaInputs?.properties[key] as Name}
+              {@const type = typeList[(property.type as keyof typeof typeList) ?? "allof"]}
+              <div
+                class="text-xl flex justify-between items-center cursor-move rounded-lg bg-white p-3 shadow-sm ring-1 ring-gray-200 transition-all duration-200 hover:shadow-md hover:ring-2 hover:ring-blue-200 svelte-dnd-touch-feedback"
+                use:draggable={{
+                  container: "off",
+                  dragData: { [key]: input as Name },
+                  interactive: [".interactible"],
+                }}
+                use:droppable={{
+                  container: "off",
+                  callbacks: { onDrop: handleDrop },
+                }}
+              >
+                <p class="items-center text-center flex"><span class="text-3xl">⠿</span>{key}</p>
+                <Select.Root
+                  type="single"
+                  value={type[0]}
+                  class="interactible"
+                >
+                  <Select.Trigger
+                    class="border border-gray-300 rounded px-2 py-1 after:content-[' ▼'] interactible"
+                  >
+                    {type[0]}
+                  </Select.Trigger>
+                  <Select.Content class="interactible">
+                    <Select.Group class="interactible z-10">
+                      {#each type as option}
+                        <Select.Item
+                          class="interactible"
+                          value={option}
+                          label={option}>{option}</Select.Item
+                        >
+                      {/each}
+                    </Select.Group>
+                  </Select.Content>
+                </Select.Root>
+              </div>
+            {/each}
+          {/if}
+        </div>
+      </div>
       <Dialog.Close class="mt-4">
-        <Button type="submit" variant="default" class="w-full">Save</Button>
+        <Button
+          variant="default"
+          class="w-full"
+          onclick={submitForm}
+        >
+          Create model block
+        </Button>
       </Dialog.Close>
-    </form>
+    </Dialog.Description>
   </Dialog.Content>
 </Dialog.Root>
 
